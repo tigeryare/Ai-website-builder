@@ -27,6 +27,8 @@ export default function Builder() {
   const [error, setError] = useState("")
   const [projectName, setProjectName] = useState("Untitled Project")
   const [isMounted, setIsMounted] = useState(false)
+  const [showSecurityInfo, setShowSecurityInfo] = useState(false)
+  const [contentAnalysis, setContentAnalysis] = useState("")
 
   useEffect(() => {
     setIsMounted(true)
@@ -69,6 +71,7 @@ export default function Builder() {
     setIsGenerating(true)
     setError("")
     setShowPreview(true)
+    analyzeContent()
 
     try {
       const response = await fetch("/api/ai/generate", {
@@ -92,6 +95,23 @@ export default function Builder() {
     }
   }
 
+  const analyzeContent = () => {
+    const analysis = []
+    if (prompt.toLowerCase().includes("payment") || prompt.toLowerCase().includes("stripe")) {
+      analysis.push("Payment processing detected - ensure SSL/HTTPS is enabled")
+    }
+    if (prompt.toLowerCase().includes("form") || prompt.toLowerCase().includes("submit")) {
+      analysis.push("Form data detected - implement proper validation")
+    }
+    if (prompt.toLowerCase().includes("login") || prompt.toLowerCase().includes("auth")) {
+      analysis.push("Authentication required - use secure password hashing")
+    }
+    if (prompt.toLowerCase().includes("user") || prompt.toLowerCase().includes("account")) {
+      analysis.push("User data handling - implement data protection compliance")
+    }
+    setContentAnalysis(analysis.length > 0 ? analysis.join(" • ") : "No security issues detected")
+  }
+
   const handleNewProject = () => {
     setPrompt("")
     setGeneratedCode("")
@@ -100,6 +120,8 @@ export default function Builder() {
     setStyle("Modern Minimal")
     setLayoutType("Single Page")
     setIsNewProject(true)
+    setShowSecurityInfo(false)
+    setContentAnalysis("")
     localStorage.removeItem(STORAGE_KEY)
   }
 
@@ -269,37 +291,26 @@ export default function Builder() {
             </div>
           </div>
 
-          {/* Options */}
           <div className="glass-effect p-4 rounded-xl">
-            <p className="text-xs font-medium text-muted-foreground mb-3">ADVANCED OPTIONS</p>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium mb-1 block">Design Style</label>
-                <select
-                  value={style}
-                  onChange={(e) => setStyle(e.target.value)}
-                  className="w-full bg-input border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option>Modern Minimal</option>
-                  <option>Bold & Vibrant</option>
-                  <option>Professional Classic</option>
-                  <option>Playful Fun</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-medium mb-1 block">Layout Type</label>
-                <select
-                  value={layoutType}
-                  onChange={(e) => setLayoutType(e.target.value)}
-                  className="w-full bg-input border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option>Single Page</option>
-                  <option>Multi Page</option>
-                  <option>Blog Site</option>
-                  <option>E-commerce</option>
-                </select>
-              </div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-medium text-muted-foreground">SECURITY</p>
+              <button
+                onClick={() => setShowSecurityInfo(!showSecurityInfo)}
+                className="text-xs text-primary hover:underline"
+              >
+                {showSecurityInfo ? "Hide" : "Show"}
+              </button>
             </div>
+            {showSecurityInfo && contentAnalysis && (
+              <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg text-xs text-foreground">
+                {contentAnalysis}
+              </div>
+            )}
+            {!showSecurityInfo && (
+              <p className="text-xs text-muted-foreground">
+                Click "Show" to see security recommendations based on your content
+              </p>
+            )}
           </div>
         </div>
 
@@ -351,26 +362,7 @@ export default function Builder() {
             </div>
           ) : (
             <div className="glass-effect rounded-xl h-full flex flex-col items-center justify-center p-8 text-center">
-              <svg
-                className="w-16 h-16 text-muted-foreground/30 mb-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                />
-              </svg>
-              <p className="text-muted-foreground mb-2">Your website preview will appear here</p>
+              <p className="text-muted-foreground mb-2">Your AI-generated website preview</p>
               <p className="text-xs text-muted-foreground/70">
                 Describe your vision and click "Generate Website" to see the magic happen
               </p>

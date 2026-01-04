@@ -2,11 +2,8 @@
 
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 
 export default function Hero() {
-  const router = useRouter()
-
   return (
     <section className="relative pt-20 pb-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
       {/* Background gradient decorations */}
@@ -53,33 +50,38 @@ export default function Hero() {
           </Link>
         </div>
 
-        {/* Hero Image Placeholder */}
-        <div className="mt-16 rounded-2xl overflow-hidden glass-effect p-1">
-          <div className="rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 aspect-video flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-primary/20 rounded-full flex items-center justify-center">
-                <svg className="w-8 h-8 text-primary" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M5 9V7a1 1 0 011-1h8a1 1 0 011 1v2m0 0a2 2 0 100-4H5a2 2 0 100 4m0 0v5a2 2 0 002 2h6a2 2 0 002-2v-5m0 0H5" />
-                </svg>
-              </div>
-              <p className="text-muted-foreground">Your AI-generated website preview</p>
+        {/* Hero Preview Card - Enhanced styling to match mockup design */}
+        <div className="mt-16 rounded-3xl overflow-hidden glass-effect p-1 max-w-3xl mx-auto">
+          <div className="rounded-2xl bg-gradient-to-br from-slate-700 via-slate-800 to-cyan-900/40 aspect-video flex flex-col items-center justify-center border border-primary/20">
+            {/* Icon */}
+            <div className="w-20 h-20 mb-4 bg-slate-700/50 rounded-full flex items-center justify-center border border-primary/30">
+              <svg className="w-10 h-10 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M5 9V7a1 1 0 011-1h8a1 1 0 011 1v2m0 0a2 2 0 100-4H5a2 2 0 100 4m0 0v5a2 2 0 002 2h6a2 2 0 002-2v-5m0 0H5" />
+              </svg>
             </div>
+            <p className="text-muted-foreground text-lg">Your AI-generated website preview</p>
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="mt-16 grid grid-cols-3 gap-8">
-          <div>
-            <p className="text-3xl font-bold text-primary">10K+</p>
-            <p className="text-sm text-muted-foreground mt-1">Sites Created</p>
+        {/* Stats - Improved spacing and styling */}
+        <div className="mt-20 grid grid-cols-3 gap-4 sm:gap-8">
+          <div className="text-center">
+            <p className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">
+              10K+
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">Sites Created</p>
           </div>
-          <div>
-            <p className="text-3xl font-bold text-secondary">99.9%</p>
-            <p className="text-sm text-muted-foreground mt-1">Uptime</p>
+          <div className="text-center">
+            <p className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-cyan-400 to-cyan-600 bg-clip-text text-transparent">
+              99.9%
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">Uptime</p>
           </div>
-          <div>
-            <p className="text-3xl font-bold text-accent">5min</p>
-            <p className="text-sm text-muted-foreground mt-1">Deploy Time</p>
+          <div className="text-center">
+            <p className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">
+              5min
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">Deploy Time</p>
           </div>
         </div>
       </div>
