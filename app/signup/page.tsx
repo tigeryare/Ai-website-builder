@@ -19,13 +19,51 @@ export default function SignUp() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (password !== confirmPassword) {
+      alert("Passwords do not match")
+      return
+    }
+
+    if (fullName.trim() === "" || email.trim() === "") {
+      alert("Please fill in all fields")
+      return
+    }
+
     setIsLoading(true)
 
-    // Simulate API call
-    setTimeout(() => {
+    const users = JSON.parse(localStorage.getItem("users") || "[]")
+
+    // Check if user already exists
+    if (users.some((user: any) => user.email === email)) {
+      alert("User already exists with this email")
       setIsLoading(false)
-      router.push("/builder")
-    }, 1000)
+      return
+    }
+
+    // Add new user
+    users.push({
+      id: Date.now().toString(),
+      name: fullName,
+      email: email,
+      password: password, // In production, this should be hashed
+      company: "",
+      createdAt: new Date().toISOString(),
+    })
+
+    localStorage.setItem("users", JSON.stringify(users))
+    localStorage.setItem(
+      "currentUser",
+      JSON.stringify({
+        id: users[users.length - 1].id,
+        name: fullName,
+        email: email,
+        company: "",
+      }),
+    )
+
+    setIsLoading(false)
+    router.push("/builder")
   }
 
   return (

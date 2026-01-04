@@ -1,22 +1,62 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import DashboardLayout from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 export default function Settings() {
-  const [fullName, setFullName] = useState("Sarah Chen")
-  const [email, setEmail] = useState("sarah@example.com")
-  const [company, setCompany] = useState("TechStartup Inc")
+  const [fullName, setFullName] = useState("")
+  const [email, setEmail] = useState("")
+  const [company, setCompany] = useState("")
   const [isSaving, setIsSaving] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem("currentUser")
+    if (savedUser) {
+      const user = JSON.parse(savedUser)
+      setFullName(user.name)
+      setEmail(user.email)
+      setCompany(user.company || "")
+    }
+    setIsLoading(false)
+  }, [])
 
   const handleSave = async () => {
     setIsSaving(true)
+    const updatedUser = { name: fullName, email, company }
+    localStorage.setItem("currentUser", JSON.stringify(updatedUser))
+
+    const users = JSON.parse(localStorage.getItem("users") || "[]")
+    const userIndex = users.findIndex((u: any) => u.email === email)
+    if (userIndex !== -1) {
+      users[userIndex] = { ...users[userIndex], name: fullName, company }
+      localStorage.setItem("users", JSON.stringify(users))
+    }
+
     setTimeout(() => {
       setIsSaving(false)
-      console.log("Settings saved:", { fullName, email, company })
+      alert("Settings saved successfully!")
     }, 1000)
+  }
+
+  const handleSignOut = () => {
+    localStorage.removeItem("currentUser")
+    localStorage.removeItem("builder_state")
+    router.push("/")
+  }
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </DashboardLayout>
+    )
   }
 
   return (
@@ -37,8 +77,8 @@ export default function Settings() {
             <div>
               <label className="block text-sm font-medium mb-3">Profile Picture</label>
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-2xl">
-                  👤
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-2xl font-bold text-foreground">
+                  {fullName.charAt(0).toUpperCase()}
                 </div>
                 <Button variant="outline" className="border-border/50 bg-transparent hover:bg-muted/50">
                   Change Avatar
@@ -64,6 +104,7 @@ export default function Settings() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="bg-input border-border/50 text-foreground placeholder:text-muted-foreground"
+                disabled
               />
             </div>
 
@@ -135,7 +176,7 @@ export default function Settings() {
           <p className="text-muted-foreground mb-4">
             Deleting your account is permanent and cannot be undone. All your projects will be deleted.
           </p>
-          <Button variant="destructive" className="w-full">
+          <Button variant="destructive" className="w-full" onClick={handleSignOut}>
             Delete Account
           </Button>
         </div>

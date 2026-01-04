@@ -10,7 +10,6 @@ export async function POST(request: Request) {
       return Response.json({ error: "Prompt is required" }, { status: 400 })
     }
 
-    // Generate complete HTML website with embedded CSS and JavaScript
     const systemPrompt = `You are an expert web developer. Generate a complete, production-ready HTML website based on the user's description.
 
 IMPORTANT REQUIREMENTS:
@@ -28,17 +27,17 @@ IMPORTANT REQUIREMENTS:
 Design Style: ${style || "Modern Minimal"}
 Layout Type: ${layoutType || "Single Page"}
 
-Generate the complete website now:`
+Generate the complete website HTML now:`
 
     const { text } = await generateText({
-      model: "groq/mixtral-8x7b-32768",
+      model: "openai/gpt-4o-mini",
       system: systemPrompt,
       prompt: prompt,
-      maxOutputTokens: 4000,
+      maxTokens: 4000,
       temperature: 0.7,
     })
 
-    // Extract HTML from response (in case AI adds extra text)
+    // Extract HTML from response
     const htmlMatch = text.match(/<html[\s\S]*?<\/html>/i)
     const generatedCode = htmlMatch ? htmlMatch[0] : text
 
@@ -48,7 +47,7 @@ Generate the complete website now:`
         html: generatedCode,
         metadata: {
           generatedAt: new Date().toISOString(),
-          model: "groq/mixtral-8x7b-32768",
+          model: "gpt-4o-mini",
           prompt: prompt,
           style: style,
           layoutType: layoutType,
@@ -58,6 +57,12 @@ Generate the complete website now:`
     )
   } catch (error) {
     console.error("[v0] AI Generation Error:", error)
-    return Response.json({ error: "Failed to generate website", details: String(error) }, { status: 500 })
+    return Response.json(
+      {
+        error: "Failed to generate website",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    )
   }
 }

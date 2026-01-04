@@ -1,12 +1,41 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
+interface User {
+  name: string
+  email: string
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [user, setUser] = useState<User>({ name: "User", email: "user@example.com" })
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem("currentUser")
+    if (savedUser) {
+      setUser(JSON.parse(savedUser))
+    }
+    // Close sidebar on mobile by default
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false)
+    }
+  }, [])
+
+  const handleNavClick = () => {
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false)
+    }
+  }
+
+  const handleSignOut = () => {
+    localStorage.removeItem("currentUser")
+    localStorage.removeItem("userProjects")
+    window.location.href = "/"
+  }
 
   return (
     <div className="flex h-screen bg-background">
@@ -19,7 +48,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b border-border/50">
-            <Link href="/dashboard" className="flex items-center gap-3">
+            <Link href="/dashboard" onClick={handleNavClick} className="flex items-center gap-3">
               <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">B</span>
               </div>
@@ -29,7 +58,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2">
-            <Link href="/dashboard">
+            <Link href="/dashboard" onClick={handleNavClick}>
               <Button variant="ghost" className="w-full justify-start text-foreground hover:bg-primary/10">
                 <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -43,7 +72,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Button>
             </Link>
 
-            <Link href="/builder">
+            <Link href="/builder" onClick={handleNavClick}>
               <Button variant="ghost" className="w-full justify-start text-foreground hover:bg-primary/10">
                 <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -57,21 +86,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Button>
             </Link>
 
-            <Link href="/templates">
-              <Button variant="ghost" className="w-full justify-start text-foreground hover:bg-primary/10">
-                <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 14l6-6m-5.5.5h.01m4 0h.01M19 13v1a2 2 0 01-2 2H7a2 2 0 01-2-2v-1m12-1v-1a2 2 0 00-2-2H7a2 2 0 00-2 2v1m12-1h-2.5a2 2 0 00-2 2v1m0-6h.01m4 0h.01m-5-6h1a2 2 0 012 2v1m-6-1v1a2 2 0 002 2h1"
-                  />
-                </svg>
-                Templates
-              </Button>
-            </Link>
-
-            <Link href="/settings">
+            <Link href="/settings" onClick={handleNavClick}>
               <Button variant="ghost" className="w-full justify-start text-foreground hover:bg-primary/10">
                 <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -96,13 +111,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="p-4 border-t border-border/50">
             <div className="glass-effect p-4 rounded-lg mb-3">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary" />
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-foreground font-bold text-sm">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">Sarah Chen</p>
-                  <p className="text-xs text-muted-foreground truncate">sarah@example.com</p>
+                  <p className="text-sm font-semibold truncate">{user.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" className="w-full justify-center text-foreground hover:bg-muted/50">
+              <Button
+                onClick={handleSignOut}
+                variant="ghost"
+                size="sm"
+                className="w-full justify-center text-foreground hover:bg-muted/50"
+              >
                 Sign Out
               </Button>
             </div>
