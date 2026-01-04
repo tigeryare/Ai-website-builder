@@ -29,6 +29,9 @@ export default function Builder() {
   const [isMounted, setIsMounted] = useState(false)
   const [showSecurityInfo, setShowSecurityInfo] = useState(false)
   const [contentAnalysis, setContentAnalysis] = useState("")
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [showHelp, setShowHelp] = useState(false)
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
@@ -123,6 +126,36 @@ export default function Builder() {
     setShowSecurityInfo(false)
     setContentAnalysis("")
     localStorage.removeItem(STORAGE_KEY)
+  }
+
+  const handleAddFeature = () => {
+    const features = ["Hero Section", "Features Grid", "Testimonials", "Pricing Table", "Contact Form", "Footer"]
+    const randomFeature = features[Math.floor(Math.random() * features.length)]
+    setPrompt((prev) => (prev ? `${prev}\n- ${randomFeature}` : `Add ${randomFeature}`))
+  }
+
+  const handleAISuggestions = async () => {
+    setSuggestions([
+      "Add a hero section with a call-to-action button",
+      "Include a testimonials section to build trust",
+      "Add a features grid to showcase key benefits",
+      "Include a pricing table for different plans",
+      "Add a newsletter signup form",
+    ])
+  }
+
+  const handleSaveDraft = async () => {
+    setIsSavingDraft(true)
+    try {
+      // Save to localStorage (already done automatically)
+      // Show success message
+      alert("Draft saved successfully!")
+    } catch (error) {
+      console.error("[v0] Failed to save draft:", error)
+      alert("Failed to save draft")
+    } finally {
+      setIsSavingDraft(false)
+    }
   }
 
   // Welcome screen for new projects
@@ -257,6 +290,67 @@ export default function Builder() {
               </div>
             )}
 
+            <div className="mt-4 flex gap-2 flex-wrap">
+              <button
+                onClick={handleAddFeature}
+                className="p-2 hover:bg-primary/20 rounded-lg transition border border-primary/30 text-primary"
+                title="Add a feature to your prompt"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+              <button
+                onClick={handleAISuggestions}
+                className="p-2 hover:bg-primary/20 rounded-lg transition border border-primary/30 text-primary"
+                title="Get AI suggestions"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setShowHelp(!showHelp)}
+                className="p-2 hover:bg-primary/20 rounded-lg transition border border-primary/30 text-primary ml-auto"
+                title="Show help"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {suggestions.length > 0 && (
+              <div className="mt-3 p-3 bg-primary/10 border border-primary/30 rounded-lg">
+                <p className="text-xs font-medium text-primary mb-2">Suggestions:</p>
+                <ul className="text-xs text-foreground space-y-1">
+                  {suggestions.map((suggestion, idx) => (
+                    <li key={idx} className="flex items-center gap-2 cursor-pointer hover:text-primary">
+                      <span>•</span>
+                      <span onClick={() => setPrompt((prev) => `${prev}\n- ${suggestion}`)}>{suggestion}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {showHelp && (
+              <div className="mt-3 p-3 bg-secondary/10 border border-secondary/30 rounded-lg">
+                <p className="text-xs font-medium text-secondary mb-2">Help Tips:</p>
+                <ul className="text-xs text-foreground space-y-1">
+                  <li>Be specific about colors, layout, and functionality</li>
+                  <li>Mention specific sections like hero, features, pricing</li>
+                  <li>Include any text or brand details you want featured</li>
+                  <li>Use the + button to quickly add common sections</li>
+                </ul>
+              </div>
+            )}
+
             <div className="mt-4 flex gap-2">
               <Button
                 onClick={handleGenerate}
@@ -291,27 +385,43 @@ export default function Builder() {
             </div>
           </div>
 
-          <div className="glass-effect p-4 rounded-xl">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-medium text-muted-foreground">SECURITY</p>
-              <button
-                onClick={() => setShowSecurityInfo(!showSecurityInfo)}
-                className="text-xs text-primary hover:underline"
-              >
-                {showSecurityInfo ? "Hide" : "Show"}
-              </button>
-            </div>
-            {showSecurityInfo && contentAnalysis && (
-              <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg text-xs text-foreground">
-                {contentAnalysis}
+          <div className="glass-effect p-4 rounded-xl flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <p className="text-xs font-medium text-muted-foreground">SECURITY</p>
               </div>
-            )}
-            {!showSecurityInfo && (
-              <p className="text-xs text-muted-foreground">
-                Click "Show" to see security recommendations based on your content
-              </p>
-            )}
+              {showSecurityInfo && contentAnalysis && (
+                <div className="p-2 bg-primary/10 border border-primary/30 rounded text-xs text-foreground">
+                  {contentAnalysis}
+                </div>
+              )}
+              {!showSecurityInfo && (
+                <p className="text-xs text-muted-foreground">Click security info to see recommendations</p>
+              )}
+            </div>
+            <button
+              onClick={() => setShowSecurityInfo(!showSecurityInfo)}
+              className="p-2 hover:bg-primary/20 rounded-lg transition border border-primary/30 text-primary flex-shrink-0"
+              title="Security info"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </button>
           </div>
+
+          <Button
+            onClick={handleSaveDraft}
+            disabled={isSavingDraft}
+            className="w-full mt-4 bg-secondary hover:bg-secondary/90 text-secondary-foreground font-semibold"
+          >
+            {isSavingDraft ? "Saving..." : "Save Draft"}
+          </Button>
         </div>
 
         {/* Right Panel - Preview */}

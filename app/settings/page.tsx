@@ -108,15 +108,8 @@ export default function Settings() {
               />
             </div>
 
-            {/* Company */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Company (Optional)</label>
-              <Input
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-                className="bg-input border-border/50 text-foreground placeholder:text-muted-foreground"
-              />
-            </div>
+           
+            
           </div>
 
           <div className="mt-6 flex gap-3">

@@ -13,6 +13,15 @@ export default function ClientLayout({
 
   useEffect(() => {
     setMounted(true)
+    const savedTheme = localStorage.getItem("theme")
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+
+    if (savedTheme === "light") {
+      document.documentElement.classList.remove("dark")
+    } else {
+      document.documentElement.classList.add("dark")
+      localStorage.setItem("theme", "dark")
+    }
   }, [])
 
   if (!mounted) return null

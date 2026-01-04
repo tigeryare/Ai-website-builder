@@ -52,7 +52,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">B</span>
               </div>
-              <span className="font-bold text-lg">BuildAI</span>
+              <span className="font-bold text-lg">TeamTan</span>
             </Link>
           </div>
 
@@ -82,7 +82,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
                   />
                 </svg>
-                AI Builder
+                 Build Project
               </Button>
             </Link>
 
