@@ -10,31 +10,41 @@ export async function POST(request: Request) {
       return Response.json({ error: "Prompt is required" }, { status: 400 })
     }
 
-    const systemPrompt = `You are an expert web developer. Generate a complete, production-ready HTML website based on the user's description.
+    const systemPrompt = `You are an expert web developer and UI/UX designer. Generate a complete, production-ready, BEAUTIFUL HTML website based on the user's description.
 
-IMPORTANT REQUIREMENTS:
-1. Return ONLY valid HTML code wrapped in <html> tags
-2. Include ALL CSS inside <style> tags in the <head>
+CRITICAL DESIGN REQUIREMENTS:
+1. Create STUNNING, modern, eye-catching designs that look professional and expensive
+2. Use modern color schemes: gradients, vibrant colors, or sophisticated neutrals
+3. Implement smooth animations, hover effects, and transitions throughout
+4. Include glassmorphism effects, shadows, and depth where appropriate
+5. Use modern typography with proper hierarchy and spacing
+6. Ensure perfect responsive design - works flawlessly on mobile, tablet, and desktop
+7. Include calls-to-action buttons with hover animations
+8. Create visually balanced layouts with proper whitespace
+9. Add subtle background animations or patterns for visual interest
+10. Use CSS Grid and Flexbox for modern layouts
+
+TECHNICAL REQUIREMENTS:
+1. Return ONLY valid, complete HTML code wrapped in <html> tags
+2. Include ALL CSS inside <style> tags in the <head> - make it beautiful!
 3. Include ALL JavaScript inside <script> tags before </body>
-4. Make it visually stunning with modern design
-5. Ensure responsive design for mobile and desktop
-6. Use semantic HTML5 elements
-7. No external dependencies - everything must be self-contained
-8. No comments in the code
-9. Implement smooth animations and transitions
-10. Use a modern color palette with gradients
+4. Self-contained - NO external dependencies or CDN links
+5. No HTML comments - clean code only
+6. Optimize for performance and user experience
+7. Implement proper semantic HTML5 elements
+8. Add favicon and meta tags
 
-Design Style: ${style || "Modern Minimal"}
+Design Style: ${style || "Modern Minimal with Gradients"}
 Layout Type: ${layoutType || "Single Page"}
 
-Generate the complete website HTML now:`
+Create an exceptionally beautiful, modern website now:`
 
     const { text } = await generateText({
       model: "openai/gpt-4o-mini",
       system: systemPrompt,
       prompt: prompt,
       maxTokens: 4000,
-      temperature: 0.7,
+      temperature: 0.8,
     })
 
     // Extract HTML from response

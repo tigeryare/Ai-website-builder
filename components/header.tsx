@@ -58,8 +58,8 @@ export default function Header() {
           <div className="hidden md:flex items-center gap-3">
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg border border-border/50 hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
-              title="Toggle dark/light mode"
+              className="p-2.5 rounded-lg border-2 border-primary/30 hover:border-primary/60 hover:bg-primary/10 text-primary transition-all duration-200 flex items-center justify-center"
+              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
               {isDark ? (
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -115,8 +115,8 @@ export default function Header() {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={toggleTheme}
-                className="p-2 rounded-lg border border-border/50 hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
-                title="Toggle dark/light mode"
+                className="p-2.5 rounded-lg border-2 border-primary/30 hover:border-primary/60 hover:bg-primary/10 text-primary transition-all duration-200 flex items-center justify-center flex-shrink-0"
+                title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
               >
                 {isDark ? (
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">

@@ -1,11 +1,20 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import BuilderLayout from "@/components/builder-layout"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import BuilderLayout from "@/components/builder-layout"
+import { Plus, Zap, HelpCircle, Settings, X, Maximize2, ChevronDown } from "lucide-react"
+import { AIChatbot } from "@/components/ai-chatbot"
 
-const STORAGE_KEY = "builder_state"
+interface Project {
+  id: string
+  name: string
+  prompt: string
+  code: string
+  createdAt: string
+  updatedAt: string
+  deployedUrl?: string
+}
 
 interface BuilderState {
   prompt: string
@@ -16,139 +25,188 @@ interface BuilderState {
   lastSaved: string
 }
 
-export default function Builder() {
+const STORAGE_KEY = "builder_state"
+const PROJECTS_KEY = "projects"
+const LAST_ACTIVE_PROJECT_KEY = "lastActiveProjectId"
+
+export default function BuilderPage() {
   const [prompt, setPrompt] = useState("")
+  const [code, setCode] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
-  const [generatedCode, setGeneratedCode] = useState("")
-  const [showPreview, setShowPreview] = useState(false)
-  const [isNewProject, setIsNewProject] = useState(true)
-  const [style, setStyle] = useState("Modern Minimal")
-  const [layoutType, setLayoutType] = useState("Single Page")
   const [error, setError] = useState("")
-  const [projectName, setProjectName] = useState("Untitled Project")
-  const [isMounted, setIsMounted] = useState(false)
-  const [showSecurityInfo, setShowSecurityInfo] = useState(false)
-  const [contentAnalysis, setContentAnalysis] = useState("")
-  const [suggestions, setSuggestions] = useState<string[]>([])
-  const [showHelp, setShowHelp] = useState(false)
+  const [activeTab, setActiveTab] = useState<"preview" | "code">("preview")
+  const [showFullscreen, setShowFullscreen] = useState(false)
+  const [showPreview, setShowPreview] = useState(true)
   const [isSavingDraft, setIsSavingDraft] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [projects, setProjects] = useState<Project[]>([])
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
+  const [showProjectMenu, setShowProjectMenu] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
+  const [showSecurity, setShowSecurity] = useState(false)
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [publishedUrl, setPublishedUrl] = useState<string>("")
+  const [copiedToClipboard, setCopiedToClipboard] = useState(false)
 
   useEffect(() => {
-    setIsMounted(true)
+    const savedProjects = localStorage.getItem(PROJECTS_KEY)
+    if (savedProjects) {
+      const parsedProjects = JSON.parse(savedProjects)
+      setProjects(parsedProjects)
+
+      const lastActiveId = localStorage.getItem(LAST_ACTIVE_PROJECT_KEY)
+      if (lastActiveId && parsedProjects.find((p: Project) => p.id === lastActiveId)) {
+        loadProject(lastActiveId)
+      }
+    }
+
     const savedState = localStorage.getItem(STORAGE_KEY)
     if (savedState) {
-      try {
-        const state: BuilderState = JSON.parse(savedState)
-        setPrompt(state.prompt)
-        setGeneratedCode(state.generatedCode)
-        setStyle(state.style)
-        setLayoutType(state.layoutType)
-        setProjectName(state.projectName)
-        setIsNewProject(!state.generatedCode)
-        if (state.generatedCode) {
-          setShowPreview(true)
-        }
-      } catch (e) {
-        console.error("Failed to load saved state:", e)
-      }
+      const { prompt: savedPrompt, code: savedCode, projectId } = JSON.parse(savedState)
+      setPrompt(savedPrompt)
+      setCode(savedCode)
+      setCurrentProjectId(projectId)
     }
   }, [])
 
   useEffect(() => {
-    if (!isMounted) return
+    const saveTimeout = setTimeout(() => {
+      if (prompt || code) {
+        const projectId = currentProjectId || "project_" + Date.now()
 
-    const state: BuilderState = {
-      prompt,
-      generatedCode,
-      style,
-      layoutType,
-      projectName,
-      lastSaved: new Date().toISOString(),
+        const updatedProjects = projects.filter((p) => p.id !== projectId)
+        const newProject: Project = {
+          id: projectId,
+          name: prompt.substring(0, 50) || "Untitled Project",
+          prompt,
+          code,
+          createdAt: projects.find((p) => p.id === projectId)?.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+
+        const newProjects = [...updatedProjects, newProject]
+        setProjects(newProjects)
+        setCurrentProjectId(projectId)
+
+        localStorage.setItem(PROJECTS_KEY, JSON.stringify(newProjects))
+        localStorage.setItem(LAST_ACTIVE_PROJECT_KEY, projectId)
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ prompt, code, projectId }))
+      }
+    }, 1000)
+
+    return () => clearTimeout(saveTimeout)
+  }, [prompt, code, currentProjectId, projects])
+
+  const loadProject = (projectId: string) => {
+    const project = projects.find((p) => p.id === projectId)
+    if (project) {
+      setPrompt(project.prompt)
+      setCode(project.code)
+      setCurrentProjectId(projectId)
+      localStorage.setItem(LAST_ACTIVE_PROJECT_KEY, projectId)
+      setShowProjectMenu(false)
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  }, [prompt, generatedCode, style, layoutType, projectName, isMounted])
+  }
+
+  const handleNewProject = () => {
+    setPrompt("")
+    setCode("")
+    setCurrentProjectId(null)
+    setPublishedUrl("")
+    localStorage.removeItem(LAST_ACTIVE_PROJECT_KEY)
+    localStorage.removeItem(STORAGE_KEY)
+  }
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) return
+    if (!prompt.trim()) {
+      setError("Please enter a prompt")
+      return
+    }
 
     setIsGenerating(true)
     setError("")
-    setShowPreview(true)
-    analyzeContent()
 
     try {
       const response = await fetch("/api/ai/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, style, layoutType }),
+        body: JSON.stringify({ prompt }),
       })
 
-      const data = await response.json()
-
       if (!response.ok) {
-        throw new Error(data.error || "Failed to generate website")
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to generate website")
       }
 
-      setGeneratedCode(data.html)
+      const data = await response.json()
+      setCode(data.html)
     } catch (err) {
-      setError(String(err))
-      console.error("[v0] Generation failed:", err)
+      setError(err instanceof Error ? err.message : "An error occurred")
+      console.error("[v0] Generation error:", err)
     } finally {
       setIsGenerating(false)
     }
   }
 
-  const analyzeContent = () => {
-    const analysis = []
-    if (prompt.toLowerCase().includes("payment") || prompt.toLowerCase().includes("stripe")) {
-      analysis.push("Payment processing detected - ensure SSL/HTTPS is enabled")
+  const handlePublish = async () => {
+    if (!code) {
+      setError("Generate a website first before publishing")
+      return
     }
-    if (prompt.toLowerCase().includes("form") || prompt.toLowerCase().includes("submit")) {
-      analysis.push("Form data detected - implement proper validation")
+
+    setIsPublishing(true)
+    setError("")
+
+    try {
+      const projectId = currentProjectId || "project_" + Date.now()
+      const projectName = (projects.find((p) => p.id === projectId)?.name || "my-site")
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+
+      const response = await fetch("/api/deploy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          projectName,
+          html: code,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to publish website")
+      }
+
+      const data = await response.json()
+
+      const updatedProjects = projects.map((p) => (p.id === projectId ? { ...p, deployedUrl: data.deployment.url } : p))
+      setProjects(updatedProjects)
+      localStorage.setItem(PROJECTS_KEY, JSON.stringify(updatedProjects))
+
+      setPublishedUrl(data.deployment.url)
+      setError("")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to publish")
+      console.error("[v0] Publish error:", err)
+    } finally {
+      setIsPublishing(false)
     }
-    if (prompt.toLowerCase().includes("login") || prompt.toLowerCase().includes("auth")) {
-      analysis.push("Authentication required - use secure password hashing")
-    }
-    if (prompt.toLowerCase().includes("user") || prompt.toLowerCase().includes("account")) {
-      analysis.push("User data handling - implement data protection compliance")
-    }
-    setContentAnalysis(analysis.length > 0 ? analysis.join(" • ") : "No security issues detected")
   }
 
-  const handleNewProject = () => {
-    setPrompt("")
-    setGeneratedCode("")
-    setShowPreview(false)
-    setProjectName("Untitled Project")
-    setStyle("Modern Minimal")
-    setLayoutType("Single Page")
-    setIsNewProject(true)
-    setShowSecurityInfo(false)
-    setContentAnalysis("")
-    localStorage.removeItem(STORAGE_KEY)
-  }
-
-  const handleAddFeature = () => {
-    const features = ["Hero Section", "Features Grid", "Testimonials", "Pricing Table", "Contact Form", "Footer"]
-    const randomFeature = features[Math.floor(Math.random() * features.length)]
-    setPrompt((prev) => (prev ? `${prev}\n- ${randomFeature}` : `Add ${randomFeature}`))
-  }
-
-  const handleAISuggestions = async () => {
-    setSuggestions([
-      "Add a hero section with a call-to-action button",
-      "Include a testimonials section to build trust",
-      "Add a features grid to showcase key benefits",
-      "Include a pricing table for different plans",
-      "Add a newsletter signup form",
-    ])
+  const handleCopyUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(publishedUrl)
+      setCopiedToClipboard(true)
+      setTimeout(() => setCopiedToClipboard(false), 2000)
+    } catch {
+      setError("Failed to copy URL")
+    }
   }
 
   const handleSaveDraft = async () => {
     setIsSavingDraft(true)
     try {
-      // Save to localStorage (already done automatically)
-      // Show success message
       alert("Draft saved successfully!")
     } catch (error) {
       console.error("[v0] Failed to save draft:", error)
@@ -158,328 +216,310 @@ export default function Builder() {
     }
   }
 
-  // Welcome screen for new projects
-  if (isNewProject && !showPreview) {
-    return (
-      <BuilderLayout>
-        <div className="flex items-center justify-center h-[calc(100vh-120px)]">
-          <div className="flex flex-col items-center text-center max-w-2xl mx-auto px-4">
-            {/* 3D Cube Logo */}
-            <div className="mb-8 relative w-24 h-24">
-              <svg viewBox="0 0 100 100" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <linearGradient id="cubeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#ffffff" />
-                    <stop offset="100%" stopColor="#e0e7ff" />
-                  </linearGradient>
-                </defs>
-                <path
-                  d="M 30 30 L 70 30 L 70 70 L 30 70 Z"
-                  fill="url(#cubeGradient)"
-                  stroke="#4f46e5"
-                  strokeWidth="2"
-                />
-                <path d="M 30 30 L 50 15 L 70 30 L 50 45 Z" fill="#f3f4f6" stroke="#4f46e5" strokeWidth="2" />
-                <path d="M 70 30 L 85 40 L 85 80 L 70 70 Z" fill="#e5e7eb" stroke="#4f46e5" strokeWidth="2" />
-                <text x="50" y="58" fontSize="28" fontWeight="bold" fill="#4f46e5" textAnchor="middle" dy="0.3em">
-                  B
-                </text>
-              </svg>
-            </div>
-
-            <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
-              Build Your App
-            </h1>
-            <p className="text-lg text-muted-foreground mb-12">Turn your startup idea into reality</p>
-
-            {/* Input Card */}
-            <div className="w-full max-w-xl glass-effect p-6 rounded-2xl border border-primary/20 shadow-lg">
-              <div className="flex gap-3 items-center">
-                <input
-                  type="text"
-                  placeholder="Let's build a Landing Page for ..."
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleGenerate()}
-                  className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none text-base"
-                />
-
-                <div className="flex gap-2">
-                  <button className="p-2 hover:bg-primary/10 rounded-lg transition" title="Add feature">
-                    <svg
-                      className="w-5 h-5 text-muted-foreground hover:text-primary"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                  </button>
-                  <button className="p-2 hover:bg-primary/10 rounded-lg transition" title="AI suggestions">
-                    <svg
-                      className="w-5 h-5 text-muted-foreground hover:text-primary"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13 10V3L4 14h7v7l9-11h-7z"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <Button
-              onClick={() => {
-                handleGenerate()
-                setIsNewProject(false)
-              }}
-              disabled={isGenerating || !prompt.trim()}
-              className="mt-8 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 py-3 rounded-lg flex items-center gap-2 text-base h-auto"
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-              </svg>
-              Start Building
-            </Button>
-          </div>
-        </div>
-      </BuilderLayout>
-    )
+  const handleAddFeature = () => {
+    const features = [
+      "Hero Section",
+      "Features Grid",
+      "Pricing Table",
+      "Contact Form",
+      "Testimonials",
+      "FAQ Section",
+      "Team Members",
+      "Blog Section",
+    ]
+    const randomFeature = features[Math.floor(Math.random() * features.length)]
+    setPrompt((prev) => (prev ? `${prev}, add ${randomFeature}` : randomFeature))
   }
+
+  const handleAISuggestions = () => {
+    const suggestions = [
+      "Add a modern hero section",
+      "Include social media links",
+      "Add testimonials section",
+      "Create a pricing comparison table",
+      "Add FAQ section",
+      "Include newsletter signup",
+    ]
+    setSuggestions(suggestions)
+    setShowSuggestions(true)
+  }
+
+  const addSuggestion = (suggestion: string) => {
+    setPrompt((prev) => (prev ? `${prev}, ${suggestion}` : suggestion))
+    setShowSuggestions(false)
+  }
+
+  const currentProject = projects.find((p) => p.id === currentProjectId)
 
   return (
     <BuilderLayout>
       <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-120px)]">
-        {/* Left Panel */}
         <div className="w-full lg:w-1/3 flex flex-col">
-          <div className="glass-effect p-4 mb-4 rounded-xl flex items-center justify-between">
-            <Input
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              placeholder="Project name..."
-              className="bg-input border-border/50 text-foreground placeholder:text-muted-foreground font-semibold text-lg"
-            />
+          <div className="glass-effect p-4 mb-4 rounded-xl relative">
             <button
-              onClick={handleNewProject}
-              className="ml-2 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition"
-              title="Start a new project"
+              onClick={() => setShowProjectMenu(!showProjectMenu)}
+              className="w-full flex items-center justify-between p-3 bg-background/50 border border-border/50 rounded-lg hover:border-primary/50 transition"
             >
-              New
+              <span className="text-sm font-medium text-muted-foreground">
+                {currentProject ? currentProject.name.substring(0, 30) : "Select Project"}
+              </span>
+              <ChevronDown size={16} />
             </button>
+
+            {showProjectMenu && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
+                {projects.map((project) => (
+                  <button
+                    key={project.id}
+                    onClick={() => loadProject(project.id)}
+                    className="w-full text-left px-4 py-2 hover:bg-muted/50 border-b border-border/30 last:border-b-0 transition text-sm"
+                  >
+                    <div className="font-medium text-foreground">{project.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(project.updatedAt).toLocaleDateString()}
+                    </div>
+                  </button>
+                ))}
+                <button
+                  onClick={handleNewProject}
+                  className="w-full text-left px-4 py-3 bg-primary/10 hover:bg-primary/20 text-primary font-medium text-sm transition"
+                >
+                  + New Project
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Prompt Input */}
-          <div className="glass-effect p-6 rounded-xl flex-1 flex flex-col mb-4">
-            <label className="text-sm font-medium mb-3">Describe Your Website</label>
+          <div className="glass-effect p-5 mb-4 rounded-xl flex-1 flex flex-col">
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="E.g., A modern landing page for a SaaS product with a hero section, features grid, testimonials, and pricing table. Use a blue and purple gradient theme..."
-              className="flex-1 bg-input border border-border/50 rounded-lg p-3 text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Describe your website... (e.g., 'Create a modern SaaS landing page with hero section, features, and pricing')"
+              className="flex-1 bg-input border border-border/50 rounded-lg p-4 text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition"
             />
 
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={handleAddFeature}
+                className="p-3 bg-muted hover:bg-muted/80 rounded-lg transition hover:ring-1 hover:ring-primary/30"
+                title="Add suggested features"
+              >
+                <Plus size={18} />
+              </button>
+              <button
+                onClick={handleAISuggestions}
+                className="p-3 bg-muted hover:bg-muted/80 rounded-lg transition hover:ring-1 hover:ring-primary/30"
+                title="Get AI suggestions"
+              >
+                <Zap size={18} />
+              </button>
+              <button
+                onClick={() => setShowHelp(!showHelp)}
+                className="p-3 bg-muted hover:bg-muted/80 rounded-lg transition hover:ring-1 hover:ring-primary/30"
+                title="Get writing tips"
+              >
+                <HelpCircle size={18} />
+              </button>
+              <button
+                onClick={() => setShowSecurity(!showSecurity)}
+                className="p-3 bg-muted hover:bg-muted/80 rounded-lg transition hover:ring-1 hover:ring-primary/30"
+                title="Security information"
+              >
+                <Settings size={18} />
+              </button>
+            </div>
+
+            {showHelp && (
+              <div className="mt-3 p-3 bg-primary/10 rounded-lg text-sm text-foreground border border-primary/20">
+                <strong>Tips:</strong> Be specific about design style, features needed, and target audience. Example:
+                "Professional landing page for a fintech app with blue gradient background"
+              </div>
+            )}
+
+            {showSuggestions && (
+              <div className="mt-3 space-y-2">
+                {suggestions.map((suggestion, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => addSuggestion(suggestion)}
+                    className="w-full text-left p-2 bg-muted/50 hover:bg-muted rounded-lg text-sm transition hover:ring-1 hover:ring-primary/20"
+                  >
+                    + {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {showSecurity && (
+              <div className="mt-3 p-3 bg-orange-500/10 rounded-lg text-sm text-foreground border border-orange-500/20">
+                <strong>Security:</strong> Your generated code is stored locally. Payment forms should use secure
+                payment processors. User data requires encryption and compliance.
+              </div>
+            )}
+
             {error && (
-              <div className="mt-2 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 text-sm">
+              <div className="mt-3 p-3 bg-destructive/20 rounded-lg text-sm text-destructive border border-destructive/20">
                 {error}
               </div>
             )}
 
-            <div className="mt-4 flex gap-2 flex-wrap">
-              <button
-                onClick={handleAddFeature}
-                className="p-2 hover:bg-primary/20 rounded-lg transition border border-primary/30 text-primary"
-                title="Add a feature to your prompt"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
-              <button
-                onClick={handleAISuggestions}
-                className="p-2 hover:bg-primary/20 rounded-lg transition border border-primary/30 text-primary"
-                title="Get AI suggestions"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setShowHelp(!showHelp)}
-                className="p-2 hover:bg-primary/20 rounded-lg transition border border-primary/30 text-primary ml-auto"
-                title="Show help"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            {publishedUrl && (
+              <div className="mt-4 p-4 bg-green-500/10 rounded-lg border border-green-500/30">
+                <div className="text-sm font-semibold text-green-600 mb-2">Website Published Successfully!</div>
+                <div className="flex items-center gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={publishedUrl}
+                    readOnly
+                    className="flex-1 px-3 py-2 bg-background/50 border border-border/50 rounded-lg text-sm text-foreground"
                   />
-                </svg>
-              </button>
-            </div>
-
-            {suggestions.length > 0 && (
-              <div className="mt-3 p-3 bg-primary/10 border border-primary/30 rounded-lg">
-                <p className="text-xs font-medium text-primary mb-2">Suggestions:</p>
-                <ul className="text-xs text-foreground space-y-1">
-                  {suggestions.map((suggestion, idx) => (
-                    <li key={idx} className="flex items-center gap-2 cursor-pointer hover:text-primary">
-                      <span>•</span>
-                      <span onClick={() => setPrompt((prev) => `${prev}\n- ${suggestion}`)}>{suggestion}</span>
-                    </li>
-                  ))}
-                </ul>
+                  <button
+                    onClick={handleCopyUrl}
+                    className={`px-4 py-2 rounded-lg font-medium transition ${
+                      copiedToClipboard
+                        ? "bg-green-600 text-white"
+                        : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                    }`}
+                  >
+                    {copiedToClipboard ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+                <a
+                  href={publishedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:text-primary/80 underline"
+                >
+                  Visit published site →
+                </a>
               </div>
             )}
 
-            {showHelp && (
-              <div className="mt-3 p-3 bg-secondary/10 border border-secondary/30 rounded-lg">
-                <p className="text-xs font-medium text-secondary mb-2">Help Tips:</p>
-                <ul className="text-xs text-foreground space-y-1">
-                  <li>Be specific about colors, layout, and functionality</li>
-                  <li>Mention specific sections like hero, features, pricing</li>
-                  <li>Include any text or brand details you want featured</li>
-                  <li>Use the + button to quickly add common sections</li>
-                </ul>
-              </div>
-            )}
-
-            <div className="mt-4 flex gap-2">
+            <div className="flex gap-2 mt-4">
               <Button
                 onClick={handleGenerate}
-                disabled={isGenerating || !prompt.trim()}
-                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                disabled={isGenerating}
+                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold transition hover:shadow-lg"
               >
-                {isGenerating ? (
-                  <>
-                    <svg className="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" opacity="0.25" />
-                      <path
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13 10V3L4 14h7v7l9-11h-7z"
-                      />
-                    </svg>
-                    Generate Website
-                  </>
-                )}
+                {isGenerating ? "Generating..." : "Generate"}
+              </Button>
+              <Button
+                onClick={handlePublish}
+                disabled={isPublishing || !code}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold transition hover:shadow-lg"
+              >
+                {isPublishing ? "Publishing..." : "Publish"}
               </Button>
             </div>
-          </div>
 
-          <div className="glass-effect p-4 rounded-xl flex items-start justify-between gap-3">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <p className="text-xs font-medium text-muted-foreground">SECURITY</p>
-              </div>
-              {showSecurityInfo && contentAnalysis && (
-                <div className="p-2 bg-primary/10 border border-primary/30 rounded text-xs text-foreground">
-                  {contentAnalysis}
-                </div>
-              )}
-              {!showSecurityInfo && (
-                <p className="text-xs text-muted-foreground">Click security info to see recommendations</p>
-              )}
-            </div>
-            <button
-              onClick={() => setShowSecurityInfo(!showSecurityInfo)}
-              className="p-2 hover:bg-primary/20 rounded-lg transition border border-primary/30 text-primary flex-shrink-0"
-              title="Security info"
+            <Button
+              onClick={handleSaveDraft}
+              disabled={isSavingDraft}
+              className="w-full mt-3 bg-secondary hover:bg-secondary/90 text-secondary-foreground font-semibold transition hover:shadow-md"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </button>
+              {isSavingDraft ? "Saving..." : "Save Draft"}
+            </Button>
           </div>
-
-          <Button
-            onClick={handleSaveDraft}
-            disabled={isSavingDraft}
-            className="w-full mt-4 bg-secondary hover:bg-secondary/90 text-secondary-foreground font-semibold"
-          >
-            {isSavingDraft ? "Saving..." : "Save Draft"}
-          </Button>
         </div>
 
-        {/* Right Panel - Preview */}
-        <div className="w-full lg:w-2/3">
-          {showPreview && generatedCode ? (
-            <div className="glass-effect p-2 rounded-xl h-full flex flex-col">
-              <div className="flex items-center justify-between mb-4 px-4 pt-4">
-                <div className="flex gap-2">
-                  <button className="px-3 py-1 rounded-lg bg-primary/20 text-primary text-xs font-medium">
-                    Preview
-                  </button>
-                  <button className="px-3 py-1 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted/50">
-                    Code
-                  </button>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10 14l-2-2m0 0l-2-2m2 2l2-2m-2 2l-2 2m2-2l2 2"
-                      />
-                    </svg>
-                  </Button>
-                  <Button variant="ghost" size="sm">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 8V4m0 0h4m-4 0l5 5m11-5v4m0-4h-4m4 0l-5 5M4 20v-4m0 4h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"
-                      />
-                    </svg>
-                  </Button>
-                </div>
+        {showPreview && (
+          <div className="w-full lg:w-2/3 flex flex-col">
+            <div className="glass-effect p-4 rounded-xl flex items-center justify-between mb-4">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setActiveTab("preview")}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    activeTab === "preview"
+                      ? "bg-primary text-primary-foreground shadow-lg"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  Preview
+                </button>
+                <button
+                  onClick={() => setActiveTab("code")}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    activeTab === "code"
+                      ? "bg-primary text-primary-foreground shadow-lg"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  Code
+                </button>
               </div>
 
-              <div className="flex-1 bg-gradient-to-br from-white/5 to-white/10 rounded-lg overflow-auto">
-                <iframe
-                  srcDoc={generatedCode}
-                  title="Website Preview"
-                  className="w-full h-full border-none"
-                  sandbox="allow-scripts allow-same-origin"
-                />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowFullscreen(true)}
+                  className="p-2 hover:bg-muted rounded-lg transition hover:ring-1 hover:ring-primary/30"
+                  title="Fullscreen"
+                >
+                  <Maximize2 size={18} />
+                </button>
+                <button
+                  onClick={() => setShowPreview(false)}
+                  className="p-2 hover:bg-muted rounded-lg transition hover:ring-1 hover:ring-primary/30"
+                  title="Close preview"
+                >
+                  <X size={18} />
+                </button>
               </div>
             </div>
-          ) : (
-            <div className="glass-effect rounded-xl h-full flex flex-col items-center justify-center p-8 text-center">
-              <p className="text-muted-foreground mb-2">Your AI-generated website preview</p>
-              <p className="text-xs text-muted-foreground/70">
-                Describe your vision and click "Generate Website" to see the magic happen
-              </p>
+
+            <div className="flex-1 glass-effect rounded-xl overflow-hidden shadow-xl">
+              {activeTab === "preview" ? (
+                code ? (
+                  <iframe
+                    srcDoc={code}
+                    className="w-full h-full border-0"
+                    title="Website preview"
+                    sandbox="allow-same-origin"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <div className="mb-2 text-4xl">🎨</div>
+                      <p>Your AI-generated website preview</p>
+                    </div>
+                  </div>
+                )
+              ) : (
+                <pre className="w-full h-full p-4 overflow-auto text-sm bg-background/50 text-foreground font-mono">
+                  <code>{code || "No code generated yet"}</code>
+                </pre>
+              )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {showFullscreen && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="w-full h-full max-w-6xl max-h-[90vh] bg-background rounded-xl shadow-2xl flex flex-col">
+              <div className="flex items-center justify-between p-5 border-b border-border glass-effect">
+                <h2 className="text-lg font-semibold text-foreground">Website Preview</h2>
+                <button onClick={() => setShowFullscreen(false)} className="p-2 hover:bg-muted rounded-lg transition">
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto">
+                {code ? (
+                  <iframe
+                    srcDoc={code}
+                    className="w-full h-full border-0"
+                    title="Fullscreen preview"
+                    sandbox="allow-same-origin"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                    Generate a website first
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+      <AIChatbot />
     </BuilderLayout>
   )
 }
